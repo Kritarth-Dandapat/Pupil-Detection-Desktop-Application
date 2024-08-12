@@ -7,7 +7,7 @@ import random
 
 class BarChart(FigureCanvas):
     def __init__(self, parent=None, data=None):
-        fig = Figure(figsize=(3, 2))  # Adjust size
+        fig = Figure(figsize=(6, 2))  # Adjust size
         self.ax = fig.add_subplot(111)
         super(BarChart, self).__init__(fig)
         if data is None:

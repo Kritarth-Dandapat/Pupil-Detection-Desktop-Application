@@ -3,7 +3,7 @@ import os
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QScrollArea, QPushButton, QCheckBox, QComboBox, QFrame,
-    QRadioButton, QButtonGroup, QSpinBox
+    QRadioButton, QButtonGroup, QSpinBox, QSizePolicy, QTableWidget, QTableWidgetItem
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor, QPixmap
@@ -17,8 +17,8 @@ class ApplicationWindow(QWidget):
         super().__init__()
 
         # Main layout
-        self.setWindowTitle("Mockup UI")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setWindowTitle("Pupil detection App")
+        self.setGeometry(100, 100, 1600, 1200)
         self.main_layout = QVBoxLayout()
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -87,14 +87,39 @@ class ApplicationWindow(QWidget):
         layout.addLayout(pupil_layout)
 
         # Center: Two Tables with Random Data
+        
         table_layout = QHBoxLayout()
-        for i in range(2):
-            table_content = "\n".join([f"Header {chr(65+i)}\nCell text {chr(65+i)}{j+1}" for j in range(3)])
-            table = QLabel(table_content)
-            table.setFixedSize(200, 100)
-            table.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
-            table_layout.addWidget(table)
+        
+        # Create first table
+        table_1 = QTableWidget()
+        table_1.setRowCount(3)
+        table_1.setColumnCount(2)
+        table_1.setHorizontalHeaderLabels(['Header A', 'Header B'])
+        table_1.setItem(0, 0, QTableWidgetItem('Data A1'))
+        table_1.setItem(0, 1, QTableWidgetItem('Data B1'))
+        table_1.setItem(1, 0, QTableWidgetItem('Data A2'))
+        table_1.setItem(1, 1, QTableWidgetItem('Data B2'))
+        table_1.setItem(2, 0, QTableWidgetItem('Data A3'))
+        table_1.setItem(2, 1, QTableWidgetItem('Data B3'))
+        
+        # Create second table
+        table_2 = QTableWidget()
+        table_2.setRowCount(3)
+        table_2.setColumnCount(2)
+        table_2.setHorizontalHeaderLabels(['Header C', 'Header D'])
+        table_2.setItem(0, 0, QTableWidgetItem('Data C1'))
+        table_2.setItem(0, 1, QTableWidgetItem('Data D1'))
+        table_2.setItem(1, 0, QTableWidgetItem('Data C2'))
+        table_2.setItem(1, 1, QTableWidgetItem('Data D2'))
+        table_2.setItem(2, 0, QTableWidgetItem('Data C3'))
+        table_2.setItem(2, 1, QTableWidgetItem('Data D3'))
+
+        # Add tables to the layout
+        table_layout.addWidget(table_1)
+        table_layout.addWidget(table_2)
+        
         layout.addLayout(table_layout)
+        self.setLayout(layout)
 
         # Right: Radar Chart
         radar_layout = QVBoxLayout()
@@ -104,64 +129,148 @@ class ApplicationWindow(QWidget):
     def create_middle_section(self, layout):
         # Real-time plots (Pupil, Camera FPS, Model Confidence)
         real_time_plots_layout = QVBoxLayout()
-        real_time_plots_layout.addWidget(RealTimePlot(title="Pupil"))
-        real_time_plots_layout.addWidget(RealTimePlot(title="Camera FPS"))
-        real_time_plots_layout.addWidget(RealTimePlot(title="Model Confidence"))
-        layout.addLayout(real_time_plots_layout)
+
+        # Existing RealTimePlot widgets with visible titles
+        pupil_plot = RealTimePlot(title="Pupil")
+        fps_plot = RealTimePlot(title="Camera FPS")
+        confidence_plot = RealTimePlot(title="Model Confidence")
+
+        # Set size policy to control how the plots expand
+        pupil_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        fps_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        confidence_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Add the plots to the vertical layout
+        real_time_plots_layout.addWidget(pupil_plot)
+        real_time_plots_layout.addWidget(fps_plot)
+        real_time_plots_layout.addWidget(confidence_plot)
+
+        # Set stretch factors to adjust the relative size of each plot
+        real_time_plots_layout.setStretch(0, 1)  # Pupil plot
+        real_time_plots_layout.setStretch(1, 1)  # Camera FPS plot
+        real_time_plots_layout.setStretch(2, 1)  # Model Confidence plot
+
+        # New layout for additional RealTimePlot and button
+        additional_plot_layout = QVBoxLayout()
+        additional_plot = RealTimePlot(title="Additional Plot")  # New RealTimePlot widget
+        additional_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        generate_report_button = QPushButton("Generate Report")  # New button
+
+        additional_plot_layout.addWidget(additional_plot)
+        additional_plot_layout.addWidget(generate_report_button)
+
+        # Add the additional layout to the right side of the middle section
+        right_layout = QHBoxLayout()
+        right_layout.addLayout(real_time_plots_layout)
+        right_layout.addLayout(additional_plot_layout)
+
+        # Set the stretch factors to control the width of each section
+        right_layout.setStretch(0, 2)  # Left section (Real-time plots)
+        right_layout.setStretch(1, 1)  # Right section (Additional plot and button)
+
+        layout.addLayout(right_layout)
+
+
+
+
+
 
     def create_bottom_section(self, layout):
-        # Left: Sound test controls
+        # Set a maximum height for the bottom section to 1/3 of the viewable page height
+        bottom_section_max_height = int(self.height() / 3)
+
+        bottom_section_widget = QWidget()
+        bottom_section_layout = QHBoxLayout(bottom_section_widget)
+        bottom_section_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        bottom_section_widget.setMaximumHeight(bottom_section_max_height)
+
+        # Top Buttons
+        top_buttons_layout = QVBoxLayout()
+        self.check_camera_button = QPushButton("Check Camera")
+        self.confirm_camera_button = QPushButton("Confirm Camera Setting")
+        self.start_recording_button = QPushButton("Start Recording")
+        self.stop_recording_button = QPushButton("Stop Recording")
+        top_buttons_layout.addWidget(self.check_camera_button)
+        top_buttons_layout.addWidget(self.confirm_camera_button)
+        top_buttons_layout.addWidget(self.start_recording_button)
+        top_buttons_layout.addWidget(self.stop_recording_button)
+
+
+        # Checkboxes and Spinboxes
         controls_layout = QVBoxLayout()
+        self.dynamic_range_test_btn = QCheckBox("Dynamic Range Test")
+        self.loud_range_test_btn = QCheckBox("Loud Range Test")
+        self.digit_in_noise_test_btn = QCheckBox("Digit in Noise Test")
 
-        # Test Buttons
-        self.dynamic_range_test_btn = QPushButton("Dynamic Range Test: OFF")
-        self.loud_range_test_btn = QPushButton("Loud Range Test: OFF")
-        self.digit_in_noise_test_btn = QPushButton("Digit in Noise Test: OFF")
-        
-        self.dynamic_range_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
-        self.loud_range_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
-        self.digit_in_noise_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
-        
-        self.dynamic_range_test_btn.clicked.connect(self.toggle_dynamic_range_test)
-        self.loud_range_test_btn.clicked.connect(self.toggle_loud_range_test)
-        self.digit_in_noise_test_btn.clicked.connect(self.toggle_digit_in_noise_test)
-        
-        controls_layout.addWidget(self.dynamic_range_test_btn)
-        controls_layout.addWidget(self.loud_range_test_btn)
-        controls_layout.addWidget(self.digit_in_noise_test_btn)
 
-        # Repetitive Count and Baseline Time
+        text_button_layout = QVBoxLayout()
+        text_button_layout.addWidget(self.dynamic_range_test_btn)
+        text_button_layout.addWidget(self.loud_range_test_btn)
+        text_button_layout.addWidget(self.digit_in_noise_test_btn)
+
+        repetitive_count_layout = QVBoxLayout()
         self.repetitive_count_spinbox = QSpinBox()
         self.repetitive_count_spinbox.setRange(1, 100)
         self.repetitive_count_spinbox.setValue(1)
         self.repetitive_count_spinbox.setPrefix("Repetitive Count: ")
-        
+
         self.baseline_time_spinbox = QSpinBox()
         self.baseline_time_spinbox.setRange(1, 60)
         self.baseline_time_spinbox.setValue(1)
         self.baseline_time_spinbox.setPrefix("Baseline Time (s): ")
-        
-        controls_layout.addWidget(self.repetitive_count_spinbox)
-        controls_layout.addWidget(self.baseline_time_spinbox)
 
-        # Sound-related checkboxes
-        self.sound_options_layout = QVBoxLayout()
-        self.sound_checkbox_1 = QCheckBox("Sound Option 1")
-        self.sound_checkbox_2 = QCheckBox("Sound Option 2")
-        self.sound_checkbox_3 = QCheckBox("Sound Option 3")
-        
-        self.sound_options_layout.addWidget(self.sound_checkbox_1)
-        self.sound_options_layout.addWidget(self.sound_checkbox_2)
-        self.sound_options_layout.addWidget(self.sound_checkbox_3)
-        
-        controls_layout.addLayout(self.sound_options_layout)
+        repetitive_count_layout.addWidget(self.repetitive_count_spinbox)
+        repetitive_count_layout.addWidget(self.baseline_time_spinbox)
 
-        layout.addLayout(controls_layout)
+        control_layout_2 = QHBoxLayout()
+        control_layout_2.addLayout(text_button_layout)
+        control_layout_2.addLayout(repetitive_count_layout)
 
-        # Right: Bar chart
+        controls_layout.addLayout(top_buttons_layout)
+        controls_layout.addLayout(control_layout_2)
+
+        controls_widget = QWidget()
+        controls_widget.setLayout(controls_layout)
+        controls_widget.setMaximumWidth(400)  # 2/3 width
+
+        # bottom_section_layout.addWidget(buttons_widget)
+        bottom_section_layout.addWidget(controls_widget)
+
+        # Sound Options
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_content_widget = QWidget()
+        self.sound_options_layout = QVBoxLayout(scroll_content_widget)
+        self.sound_options_layout.setStretch(0, 1)
+
+        for i in range(1, 11):
+            sound_checkbox = QCheckBox()
+            sound_combo_box = QComboBox()
+            sound_combo_box.addItems(["Opt 1", "Opt 2", "Opt 3"])
+
+            sound_option_layout = QHBoxLayout()
+            sound_option_layout.setSpacing(0)  # Remove gap
+            sound_option_layout.addWidget(sound_checkbox)
+            sound_option_layout.addWidget(sound_combo_box)
+
+            self.sound_options_layout.addLayout(sound_option_layout)
+
+        scroll_area.setWidget(scroll_content_widget)
+        sound_layout = QVBoxLayout()
+        sound_layout.addWidget(QLabel("Sound Options", alignment=Qt.AlignLeft))
+        sound_layout.addWidget(scroll_area)
+
+        # Bar Chart
         chart_layout = QVBoxLayout()
         chart_layout.addWidget(BarChart())
-        layout.addLayout(chart_layout)
+        chart_layout.setStretch(0, 1)  # Ensure it takes 1/3 width
+
+        bottom_section_layout.addLayout(sound_layout)
+        bottom_section_layout.addLayout(chart_layout)
+
+        layout.addWidget(bottom_section_widget)
+
 
     def toggle_dynamic_range_test(self):
         self.toggle_test(self.dynamic_range_test_btn, "Dynamic Range Test")
