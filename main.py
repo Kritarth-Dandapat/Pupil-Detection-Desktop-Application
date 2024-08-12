@@ -1,204 +1,224 @@
 import sys
+import numpy as np
+import random
 from PyQt5.QtWidgets import (
-    QApplication, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
-    QPushButton, QComboBox, QCheckBox, QSpinBox, QHBoxLayout, QScrollArea, QGridLayout
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
+    QScrollArea, QPushButton, QCheckBox, QComboBox, QLineEdit, QFrame,
+    QRadioButton, QButtonGroup
 )
-from PyQt5.QtGui import QColor, QPalette
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import numpy as np
+from matplotlib import pyplot as plt
 
+class RealTimePlot(FigureCanvas):
+    def __init__(self, parent=None, title=""):
+        fig = Figure(figsize=(5, 2))  # Set figure size
+        self.ax = fig.add_subplot(111)
+        super(RealTimePlot, self).__init__(fig)
+        self.data = np.random.rand(100)
+        self.title = title
+        self.ax.set_title(self.title)
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("Value")
+        self.ax.set_ylim(0, 1.5)
+        self.ax.set_yticks([0.5, 1.0, 1.5])
+        self.ax.grid(True)  # Add grid
 
-class MainWindow(QMainWindow):
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(100)
+
+    def update_plot(self):
+        self.data = np.roll(self.data, -1)
+        self.data[-1] = np.random.rand()
+        self.ax.clear()
+        self.ax.plot(self.data, 'b-')
+        self.ax.set_title(self.title)
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("Value")
+        self.ax.set_ylim(0, 1.5)
+        self.ax.set_yticks([0.5, 1.0, 1.5])
+        self.ax.grid(True)
+        self.draw()
+
+class RadarChart(FigureCanvas):
+    def __init__(self, parent=None):
+        fig = Figure(figsize=(4, 4))
+        self.ax = fig.add_subplot(111, projection="polar")
+        super(RadarChart, self).__init__(fig)
+
+        # Data for the radar chart
+        categories = ["Peak Value", "Valley Time", "Baseline", "Recovery Time (s)", "AUC"]
+        values = [random.randint(50, 100) for _ in range(len(categories))]
+
+        # Customize the radar chart
+        angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False)
+        angles = np.concatenate((angles, [angles[0]]))
+        values = np.concatenate((values, [values[0]]))
+        self.ax.plot(angles, values, 'b-')
+        self.ax.fill(angles, values, 'b', alpha=0.25)
+
+        self.ax.set_thetagrids(angles * 180 / np.pi, categories)
+        self.ax.set_rlabel_position(90)
+        self.ax.set_rticks([25, 50, 75, 100])  # Customize radial ticks
+        self.ax.set_title("Radar Plot")
+        self.draw()
+
+class BarChart(FigureCanvas):
+    def __init__(self, parent=None, data=None):
+        fig = Figure(figsize=(5, 2))  # Set figure size
+        self.ax = fig.add_subplot(111)
+        super(BarChart, self).__init__(fig)
+        if data is None:
+            data = [random.randint(1, 10) for _ in range(4)]
+        self.ax.barh(["Disease 1", "Disease 2", "Disease 3", "Disease 4"], data, color='blue')
+        self.ax.set_title("Disease Bar Chart")
+        self.ax.set_xlabel("Value")
+        self.ax.set_xlim(0, 12)  # Set x-axis limit
+        self.ax.grid(True, axis='x')  # Add x-axis grid
+        self.draw()
+
+class ApplicationWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Pupil Detection")
-        self.setGeometry(100, 100, 1200, 600)
-        self.setMinimumSize(800, 600)
+        # Main layout
+        self.setWindowTitle("Mockup UI")
+        self.setGeometry(100, 100, 1200, 800)
+        self.main_layout = QVBoxLayout()
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_widget = QWidget()
+        self.scroll_layout = QVBoxLayout(self.scroll_widget)
+        self.scroll_area.setWidget(self.scroll_widget)
 
+        self.main_layout.addWidget(self.scroll_area)
+        self.setLayout(self.main_layout)
 
-        # Initialize with light theme
-        self.is_dark_theme = False
+        # Theme selection
+        self.create_theme_toggle()
 
-        scroll = QScrollArea()
-        central_widget = QWidget()
-        scroll.setWidget(central_widget)
-        scroll.setWidgetResizable(True)
-        self.setCentralWidget(scroll)
-
-        layout = QVBoxLayout(central_widget)
-
-        # Top layout
+        # Top section
         top_layout = QHBoxLayout()
+        self.create_top_section(top_layout)
+        self.scroll_layout.addLayout(top_layout)
 
-        # Theme Toggle Button
-        self.theme_toggle_button = QPushButton("Switch to Dark Theme")
-        self.theme_toggle_button.clicked.connect(self.toggle_theme)
-        layout.addWidget(self.theme_toggle_button)
-        
-        # Image label
-        self.image_label = QLabel("Pupil Image Here")
-        self.image_label.setFixedSize(320, 240)
-        top_layout.addWidget(self.image_label)
+        # Bottom section
+        bottom_layout = QHBoxLayout()
+        self.create_bottom_section(bottom_layout)
+        self.scroll_layout.addLayout(bottom_layout)
 
-        # Tables layout
-        tables_layout = QVBoxLayout()
+    def create_theme_toggle(self):
+        theme_layout = QHBoxLayout()
+        light_theme_button = QRadioButton("Light Theme")
+        dark_theme_button = QRadioButton("Dark Theme")
+        light_theme_button.setChecked(True)
+        light_theme_button.toggled.connect(lambda: self.apply_theme("light"))
+        dark_theme_button.toggled.connect(lambda: self.apply_theme("dark"))
+        theme_layout.addWidget(light_theme_button)
+        theme_layout.addWidget(dark_theme_button)
+        self.scroll_layout.addLayout(theme_layout)
 
-        # Table A
-        self.table_a = QTableWidget(5, 3)
-        self.table_a.setHorizontalHeaderLabels(['Header A', 'Header B', 'Header C'])
-        for i in range(5):
-            for j in range(3):
-                self.table_a.setItem(i, j, QTableWidgetItem(f"Cell text {chr(65+i)}{j+1}"))
-        tables_layout.addWidget(self.table_a)
-
-        # Table B
-        self.table_b = QTableWidget(5, 2)
-        self.table_b.setHorizontalHeaderLabels(['Header A', 'Header B'])
-        for i in range(5):
-            for j in range(2):
-                self.table_b.setItem(i, j, QTableWidgetItem(f"Cell text {chr(65+i)}{j+1}"))
-        tables_layout.addWidget(self.table_b)
-
-        top_layout.addLayout(tables_layout)
-
-        # Radar chart
-        self.radar_canvas = FigureCanvas(Figure(figsize=(4, 3)))
-        radar_ax = self.radar_canvas.figure.add_subplot(111, polar=True)
-        theta = np.linspace(0, 2 * np.pi, 5)
-        values = np.random.rand(5)
-        radar_ax.plot(theta, values)
-        radar_ax.fill(theta, values, 'b', alpha=0.3)
-        top_layout.addWidget(self.radar_canvas)
-
-        layout.addLayout(top_layout)
-
-        
-
-        # Apply the initial theme
-        self.set_theme()
-
-        # Graphs and Controls layout
-        graphs_and_controls_layout = QHBoxLayout()
-
-        # Graphs layout
-        graphs_layout = QVBoxLayout()
-        for _ in range(3):
-            graph_canvas = FigureCanvas(Figure(figsize=(3, 2)))
-            ax = graph_canvas.figure.add_subplot(111)
-            t = np.arange(0.0, 2.0, 0.01)
-            s = np.sin(2 * np.pi * t)
-            ax.plot(t, s)
-            graphs_layout.addWidget(graph_canvas)
-        graphs_and_controls_layout.addLayout(graphs_layout)
-
-        # Controls layout
-        controls_layout = QVBoxLayout()
-
-        # Buttons
-        self.check_camera_button = QPushButton("Check Camera")
-        self.confirm_camera_button = QPushButton("Confirm Camera Setting")
-        self.start_recording_button = QPushButton("Start Recording")
-        self.stop_recording_button = QPushButton("Stop Recording")
-        controls_layout.addWidget(self.check_camera_button)
-        controls_layout.addWidget(self.confirm_camera_button)
-        controls_layout.addWidget(self.start_recording_button)
-        controls_layout.addWidget(self.stop_recording_button)
-
-        # Checkboxes and SpinBox
-        self.dynamic_range_test = QCheckBox("Dynamic range test")
-        self.loud_range_test = QCheckBox("Loud range test")
-        self.digit_in_noise_test = QCheckBox("Digit-in-noise test")
-        controls_layout.addWidget(self.dynamic_range_test)
-        controls_layout.addWidget(self.loud_range_test)
-        controls_layout.addWidget(self.digit_in_noise_test)
-
-        self.repetition_count = QSpinBox()
-        self.repetition_count.setValue(1)
-        controls_layout.addWidget(QLabel("Repetition Count:"))
-        controls_layout.addWidget(self.repetition_count)
-
-        self.baseline_time = QSpinBox()
-        self.baseline_time.setValue(5)
-        controls_layout.addWidget(QLabel("Baseline Time:"))
-        controls_layout.addWidget(self.baseline_time)
-
-        # Sound selection with checkboxes
-        sound_grid = QGridLayout()
-        for i in range(8):
-            checkbox = QCheckBox(f"Sound {i+1}")
-            combo = QComboBox()
-            combo.addItems([f"10dB.wav", f"20dB.wav", f"30dB.wav"])
-            sound_grid.addWidget(checkbox, i, 0)
-            sound_grid.addWidget(combo, i, 1)
-        controls_layout.addLayout(sound_grid)
-
-        graphs_and_controls_layout.addLayout(controls_layout)
-
-        layout.addLayout(graphs_and_controls_layout)
-
-        # Disease report layout
-        disease_report_layout = QHBoxLayout()
-
-        # Generate Report button
-        self.generate_report_button = QPushButton("Generate Report")
-        disease_report_layout.addWidget(self.generate_report_button)
-
-        # Disease bar chart
-        self.disease_canvas = FigureCanvas(Figure(figsize=(7, 1)))
-        disease_ax = self.disease_canvas.figure.add_subplot(111)
-        self.disease_canvas.setFixedSize(650, 200)
-        disease_data = [1, 2, 3, 4]
-        disease_ax.barh([f"Disease {i+1}" for i in range(4)], disease_data, color='#5B9BD5')
-        disease_report_layout.addWidget(self.disease_canvas)
-
-
-        layout.addLayout(disease_report_layout)
-
-    def set_theme(self):
-        palette = self.palette()
-        if self.is_dark_theme:
-            # Dark theme
+    def apply_theme(self, theme):
+        palette = QPalette()
+        if theme == "light":
+            palette.setColor(QPalette.Window, QColor(255, 255, 255))
+            palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
+            palette.setColor(QPalette.Base, QColor(245, 245, 245))
+        else:
             palette.setColor(QPalette.Window, QColor(53, 53, 53))
             palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
             palette.setColor(QPalette.Base, QColor(25, 25, 25))
-            palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-            palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-            palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-            palette.setColor(QPalette.Text, QColor(255, 255, 255))
-            palette.setColor(QPalette.Button, QColor(53, 53, 53))
-            palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-            palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-            palette.setColor(QPalette.Highlight, QColor(142, 45, 197))
-            palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-            self.theme_toggle_button.setText("Switch to Light Theme")
-        else:
-            # Light theme
-            palette.setColor(QPalette.Window, QColor(245, 245, 245))
-            palette.setColor(QPalette.WindowText, QColor(50, 50, 50))
-            palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            palette.setColor(QPalette.AlternateBase, QColor(240, 240, 240))
-            palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-            palette.setColor(QPalette.ToolTipText, QColor(50, 50, 50))
-            palette.setColor(QPalette.Text, QColor(50, 50, 50))
-            palette.setColor(QPalette.Button, QColor(220, 220, 220))
-            palette.setColor(QPalette.ButtonText, QColor(50, 50, 50))
-            palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-            palette.setColor(QPalette.Highlight, QColor(91, 155, 213))
-            palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-            self.theme_toggle_button.setText("Switch to Dark Theme")
-
         self.setPalette(palette)
 
-    def toggle_theme(self):
-        self.is_dark_theme = not self.is_dark_theme
-        self.set_theme()
+    def create_top_section(self, layout):
+        # Left: Pupil Image (Placeholder)
+        pupil_layout = QVBoxLayout()
+        pupil_image = QLabel()
+        pupil_image.setFixedSize(300, 300)
+        pupil_image.setStyleSheet("background-image: url(pupil_image.jpg); background-repeat: no-repeat; background-position: center;")  # Replace with actual image
+        pupil_layout.addWidget(pupil_image)
+        layout.addLayout(pupil_layout)
 
+        # Right: Real-time plots, radar plot, and tables
+        right_layout = QVBoxLayout()
+        plot_layout = QGridLayout()
+        plot_layout.addWidget(RealTimePlot(title="Camera FPS"), 0, 0)
+        plot_layout.addWidget(RealTimePlot(title="Model Confidence"), 1, 0)
+        plot_layout.addWidget(RealTimePlot(title="Pupil Size"), 2, 0)
+        right_layout.addLayout(plot_layout)
+
+        radar_layout = QHBoxLayout()
+        radar_layout.addWidget(RadarChart())
+        right_layout.addLayout(radar_layout)
+
+        # Additional tables
+        table_layout = QHBoxLayout()
+        table_1 = QLabel("Table 1")
+        table_1.setFixedSize(200, 100)
+        table_1.setStyleSheet("background-color: white; border: 1px solid black;")
+        table_2 = QLabel("Table 2")
+        table_2.setFixedSize(200, 100)
+        table_2.setStyleSheet("background-color: white; border: 1px solid black;")
+        table_layout.addWidget(table_1)
+        table_layout.addWidget(table_2)
+        right_layout.addLayout(table_layout)
+
+        layout.addLayout(right_layout)
+
+    def create_bottom_section(self, layout):
+        # Left: Control buttons and checkboxes
+        controls_layout = QVBoxLayout()
+        button_labels = [
+            "Check Camera", "Confirm Camera Setting", "Start Recording", "Stop Recording"
+        ]
+        for label in button_labels:
+            button = QPushButton(label)
+            button.setStyleSheet("background-color: blue; color: white; padding: 10px 20px; border: none;")
+            controls_layout.addWidget(button)
+
+        # Checkboxes
+        checkbox_layout = QVBoxLayout()
+        for label in ["Dynamic range test", "Loud range test", "Digit-in-noise test"]:
+            checkbox = QCheckBox(label)
+            checkbox_layout.addWidget(checkbox)
+        controls_layout.addLayout(checkbox_layout)
+
+        layout.addLayout(controls_layout)
+
+        # Right: Sound selection and Disease Bars
+        right_layout = QVBoxLayout()
+        # Sound Selection
+        sound_layout = QGridLayout()
+        sound_layout.addWidget(QLabel("Select Sound"), 0, 0)
+        for i in range(10):
+            checkbox = QCheckBox()
+            dropdown = QComboBox()
+            dropdown.addItems(["1k 10dB.wav", "1k 5dB.wav", "1k 0dB.wav"])
+            sound_layout.addWidget(checkbox, i + 1, 0)
+            sound_layout.addWidget(dropdown, i + 1, 1)
+        right_layout.addLayout(sound_layout)
+
+        # Disease Bar Chart
+        bar_chart_layout = QHBoxLayout()
+        bar_chart = BarChart()
+        bar_chart_layout.addWidget(bar_chart)
+        right_layout.addLayout(bar_chart_layout)
+
+        # Generate Report Button
+        generate_report_button = QPushButton("Generate Report")
+        generate_report_button.setStyleSheet("background-color: blue; color: white; padding: 10px 20px; border: none;")
+        right_layout.addWidget(generate_report_button)
+
+        layout.addLayout(right_layout)
+
+def main():
+    app = QApplication(sys.argv)
+    window = ApplicationWindow()
+    window.showMaximized()  # Window will maximize to fit any screen size
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+    main()
