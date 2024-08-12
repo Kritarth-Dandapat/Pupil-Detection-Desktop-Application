@@ -1,84 +1,16 @@
 import sys
-import numpy as np
-import random
+import os
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
-    QScrollArea, QPushButton, QCheckBox, QComboBox, QLineEdit, QFrame,
-    QRadioButton, QButtonGroup
+    QScrollArea, QPushButton, QCheckBox, QComboBox, QFrame,
+    QRadioButton, QButtonGroup, QSpinBox
 )
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QPalette, QColor
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib import pyplot as plt
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPalette, QColor, QPixmap
 
-class RealTimePlot(FigureCanvas):
-    def __init__(self, parent=None, title=""):
-        fig = Figure(figsize=(5, 2))  # Set figure size
-        self.ax = fig.add_subplot(111)
-        super(RealTimePlot, self).__init__(fig)
-        self.data = np.random.rand(100)
-        self.title = title
-        self.ax.set_title(self.title)
-        self.ax.set_xlabel("Time")
-        self.ax.set_ylabel("Value")
-        self.ax.set_ylim(0, 1.5)
-        self.ax.set_yticks([0.5, 1.0, 1.5])
-        self.ax.grid(True)  # Add grid
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_plot)
-        self.timer.start(100)
-
-    def update_plot(self):
-        self.data = np.roll(self.data, -1)
-        self.data[-1] = np.random.rand()
-        self.ax.clear()
-        self.ax.plot(self.data, 'b-')
-        self.ax.set_title(self.title)
-        self.ax.set_xlabel("Time")
-        self.ax.set_ylabel("Value")
-        self.ax.set_ylim(0, 1.5)
-        self.ax.set_yticks([0.5, 1.0, 1.5])
-        self.ax.grid(True)
-        self.draw()
-
-class RadarChart(FigureCanvas):
-    def __init__(self, parent=None):
-        fig = Figure(figsize=(4, 4))
-        self.ax = fig.add_subplot(111, projection="polar")
-        super(RadarChart, self).__init__(fig)
-
-        # Data for the radar chart
-        categories = ["Peak Value", "Valley Time", "Baseline", "Recovery Time (s)", "AUC"]
-        values = [random.randint(50, 100) for _ in range(len(categories))]
-
-        # Customize the radar chart
-        angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False)
-        angles = np.concatenate((angles, [angles[0]]))
-        values = np.concatenate((values, [values[0]]))
-        self.ax.plot(angles, values, 'b-')
-        self.ax.fill(angles, values, 'b', alpha=0.25)
-
-        self.ax.set_thetagrids(angles * 180 / np.pi, categories)
-        self.ax.set_rlabel_position(90)
-        self.ax.set_rticks([25, 50, 75, 100])  # Customize radial ticks
-        self.ax.set_title("Radar Plot")
-        self.draw()
-
-class BarChart(FigureCanvas):
-    def __init__(self, parent=None, data=None):
-        fig = Figure(figsize=(5, 2))  # Set figure size
-        self.ax = fig.add_subplot(111)
-        super(BarChart, self).__init__(fig)
-        if data is None:
-            data = [random.randint(1, 10) for _ in range(4)]
-        self.ax.barh(["Disease 1", "Disease 2", "Disease 3", "Disease 4"], data, color='blue')
-        self.ax.set_title("Disease Bar Chart")
-        self.ax.set_xlabel("Value")
-        self.ax.set_xlim(0, 12)  # Set x-axis limit
-        self.ax.grid(True, axis='x')  # Add x-axis grid
-        self.draw()
+from BarChart import BarChart
+from RadarChart import RadarChart
+from RealTimePlot import RealTimePlot
 
 class ApplicationWindow(QWidget):
     def __init__(self):
@@ -104,6 +36,11 @@ class ApplicationWindow(QWidget):
         top_layout = QHBoxLayout()
         self.create_top_section(top_layout)
         self.scroll_layout.addLayout(top_layout)
+
+        # Middle section
+        middle_layout = QHBoxLayout()
+        self.create_middle_section(middle_layout)
+        self.scroll_layout.addLayout(middle_layout)
 
         # Bottom section
         bottom_layout = QHBoxLayout()
@@ -137,88 +74,114 @@ class ApplicationWindow(QWidget):
         # Left: Pupil Image (Placeholder)
         pupil_layout = QVBoxLayout()
         pupil_image = QLabel()
-        pupil_image.setFixedSize(300, 300)
-        pupil_image.setStyleSheet("background-image: url(pupil_image.jpg); background-repeat: no-repeat; background-position: center;")  # Replace with actual image
+        pupil_image.setFixedSize(300, 200)
+        image_path = "/Users/kritarth/code/PYQT5 Project/src/images/pupil-image.jpg"
+        if os.path.exists(image_path):
+            pixmap = QPixmap(image_path)
+            pupil_image.setPixmap(pixmap.scaled(300, 200, Qt.KeepAspectRatio))
+        else:
+            pupil_image.setStyleSheet("background-color: lightgray; border: 1px solid black;")
+            pupil_image.setText("Pupil Image Not Found")
+            pupil_image.setAlignment(Qt.AlignCenter)
         pupil_layout.addWidget(pupil_image)
         layout.addLayout(pupil_layout)
 
-        # Right: Real-time plots, radar plot, and tables
-        right_layout = QVBoxLayout()
-        plot_layout = QGridLayout()
-        plot_layout.addWidget(RealTimePlot(title="Camera FPS"), 0, 0)
-        plot_layout.addWidget(RealTimePlot(title="Model Confidence"), 1, 0)
-        plot_layout.addWidget(RealTimePlot(title="Pupil Size"), 2, 0)
-        right_layout.addLayout(plot_layout)
-
-        radar_layout = QHBoxLayout()
-        radar_layout.addWidget(RadarChart())
-        right_layout.addLayout(radar_layout)
-
-        # Additional tables
+        # Center: Two Tables with Random Data
         table_layout = QHBoxLayout()
-        table_1 = QLabel("Table 1")
-        table_1.setFixedSize(200, 100)
-        table_1.setStyleSheet("background-color: white; border: 1px solid black;")
-        table_2 = QLabel("Table 2")
-        table_2.setFixedSize(200, 100)
-        table_2.setStyleSheet("background-color: white; border: 1px solid black;")
-        table_layout.addWidget(table_1)
-        table_layout.addWidget(table_2)
-        right_layout.addLayout(table_layout)
+        for i in range(2):
+            table_content = "\n".join([f"Header {chr(65+i)}\nCell text {chr(65+i)}{j+1}" for j in range(3)])
+            table = QLabel(table_content)
+            table.setFixedSize(200, 100)
+            table.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
+            table_layout.addWidget(table)
+        layout.addLayout(table_layout)
 
-        layout.addLayout(right_layout)
+        # Right: Radar Chart
+        radar_layout = QVBoxLayout()
+        radar_layout.addWidget(RadarChart())
+        layout.addLayout(radar_layout)
+
+    def create_middle_section(self, layout):
+        # Real-time plots (Pupil, Camera FPS, Model Confidence)
+        real_time_plots_layout = QVBoxLayout()
+        real_time_plots_layout.addWidget(RealTimePlot(title="Pupil"))
+        real_time_plots_layout.addWidget(RealTimePlot(title="Camera FPS"))
+        real_time_plots_layout.addWidget(RealTimePlot(title="Model Confidence"))
+        layout.addLayout(real_time_plots_layout)
 
     def create_bottom_section(self, layout):
-        # Left: Control buttons and checkboxes
+        # Left: Sound test controls
         controls_layout = QVBoxLayout()
-        button_labels = [
-            "Check Camera", "Confirm Camera Setting", "Start Recording", "Stop Recording"
-        ]
-        for label in button_labels:
-            button = QPushButton(label)
-            button.setStyleSheet("background-color: blue; color: white; padding: 10px 20px; border: none;")
-            controls_layout.addWidget(button)
 
-        # Checkboxes
-        checkbox_layout = QVBoxLayout()
-        for label in ["Dynamic range test", "Loud range test", "Digit-in-noise test"]:
-            checkbox = QCheckBox(label)
-            checkbox_layout.addWidget(checkbox)
-        controls_layout.addLayout(checkbox_layout)
+        # Test Buttons
+        self.dynamic_range_test_btn = QPushButton("Dynamic Range Test: OFF")
+        self.loud_range_test_btn = QPushButton("Loud Range Test: OFF")
+        self.digit_in_noise_test_btn = QPushButton("Digit in Noise Test: OFF")
+        
+        self.dynamic_range_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
+        self.loud_range_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
+        self.digit_in_noise_test_btn.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
+        
+        self.dynamic_range_test_btn.clicked.connect(self.toggle_dynamic_range_test)
+        self.loud_range_test_btn.clicked.connect(self.toggle_loud_range_test)
+        self.digit_in_noise_test_btn.clicked.connect(self.toggle_digit_in_noise_test)
+        
+        controls_layout.addWidget(self.dynamic_range_test_btn)
+        controls_layout.addWidget(self.loud_range_test_btn)
+        controls_layout.addWidget(self.digit_in_noise_test_btn)
+
+        # Repetitive Count and Baseline Time
+        self.repetitive_count_spinbox = QSpinBox()
+        self.repetitive_count_spinbox.setRange(1, 100)
+        self.repetitive_count_spinbox.setValue(1)
+        self.repetitive_count_spinbox.setPrefix("Repetitive Count: ")
+        
+        self.baseline_time_spinbox = QSpinBox()
+        self.baseline_time_spinbox.setRange(1, 60)
+        self.baseline_time_spinbox.setValue(1)
+        self.baseline_time_spinbox.setPrefix("Baseline Time (s): ")
+        
+        controls_layout.addWidget(self.repetitive_count_spinbox)
+        controls_layout.addWidget(self.baseline_time_spinbox)
+
+        # Sound-related checkboxes
+        self.sound_options_layout = QVBoxLayout()
+        self.sound_checkbox_1 = QCheckBox("Sound Option 1")
+        self.sound_checkbox_2 = QCheckBox("Sound Option 2")
+        self.sound_checkbox_3 = QCheckBox("Sound Option 3")
+        
+        self.sound_options_layout.addWidget(self.sound_checkbox_1)
+        self.sound_options_layout.addWidget(self.sound_checkbox_2)
+        self.sound_options_layout.addWidget(self.sound_checkbox_3)
+        
+        controls_layout.addLayout(self.sound_options_layout)
 
         layout.addLayout(controls_layout)
 
-        # Right: Sound selection and Disease Bars
-        right_layout = QVBoxLayout()
-        # Sound Selection
-        sound_layout = QGridLayout()
-        sound_layout.addWidget(QLabel("Select Sound"), 0, 0)
-        for i in range(10):
-            checkbox = QCheckBox()
-            dropdown = QComboBox()
-            dropdown.addItems(["1k 10dB.wav", "1k 5dB.wav", "1k 0dB.wav"])
-            sound_layout.addWidget(checkbox, i + 1, 0)
-            sound_layout.addWidget(dropdown, i + 1, 1)
-        right_layout.addLayout(sound_layout)
+        # Right: Bar chart
+        chart_layout = QVBoxLayout()
+        chart_layout.addWidget(BarChart())
+        layout.addLayout(chart_layout)
 
-        # Disease Bar Chart
-        bar_chart_layout = QHBoxLayout()
-        bar_chart = BarChart()
-        bar_chart_layout.addWidget(bar_chart)
-        right_layout.addLayout(bar_chart_layout)
+    def toggle_dynamic_range_test(self):
+        self.toggle_test(self.dynamic_range_test_btn, "Dynamic Range Test")
 
-        # Generate Report Button
-        generate_report_button = QPushButton("Generate Report")
-        generate_report_button.setStyleSheet("background-color: blue; color: white; padding: 10px 20px; border: none;")
-        right_layout.addWidget(generate_report_button)
+    def toggle_loud_range_test(self):
+        self.toggle_test(self.loud_range_test_btn, "Loud Range Test")
 
-        layout.addLayout(right_layout)
+    def toggle_digit_in_noise_test(self):
+        self.toggle_test(self.digit_in_noise_test_btn, "Digit in Noise Test")
 
-def main():
-    app = QApplication(sys.argv)
-    window = ApplicationWindow()
-    window.showMaximized()  # Window will maximize to fit any screen size
-    sys.exit(app.exec_())
+    def toggle_test(self, button, test_name):
+        if button.text().endswith("OFF"):
+            button.setText(f"{test_name}: ON")
+            button.setStyleSheet("background-color: green; color: white; padding: 10px 20px; border: none;")
+        else:
+            button.setText(f"{test_name}: OFF")
+            button.setStyleSheet("background-color: gray; color: white; padding: 10px 20px; border: none;")
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    window = ApplicationWindow()
+    window.show()
+    sys.exit(app.exec_())
